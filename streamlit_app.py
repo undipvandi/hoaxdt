@@ -1,137 +1,81 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import numpy as np
+import nltk
+from nltk.corpus import stopwords
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.pipeline import make_pipeline
+import joblib
+import os
 
-# Konfigurasi halaman
-st.set_page_config(
-    page_title="Dashboard Interaktif",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Download stopwords
+nltk.download('stopwords', quiet=True)
 
-# Styling CSS untuk tampilan menarik
-st.markdown("""
-    <style>
-    .sidebar .sidebar-content {
-        background-color: #f0f2f6;
-    }
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        border-radius: 8px;
-        padding: 10px 20px;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-    }
-    h1, h2, h3 {
-        color: #2c3e50;
-        font-family: 'Arial', sans-serif;
-    }
-    .metric-card {
-        background-color: #ffffff;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        text-align: center;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# Fungsi untuk melatih dan menyimpan model
+@st.cache_resource
+def train_model():
+    # Load dataset
+    data = pd.read_csv("data1.csv")
+    data = data.dropna(subset=["informasi", "label"])
+    data['label'] = data['label'].apply(lambda x: 1 if x == 'hoax' else 0)
 
-# Fungsi untuk membuat data dummy
-@st.cache_data
-def load_data():
-    np.random.seed(42)
-    data = {
-        'Tanggal': pd.date_range(start='2025-01-01', periods=100, freq='D'),
-        'Penjualan': np.random.randint(50, 200, 100),
-        'Kategori': np.random.choice(['A', 'B', 'C'], 100)
-    }
-    return pd.DataFrame(data)
+    # Split data
+    X = data['informasi']
+    y = data['label']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Load data
-df = load_data()
+    # Buat dan latih model
+    model = make_pipeline(
+        TfidfVectorizer(stop_words=stopwords.words('indonesian')),
+        SVC(kernel='linear', class_weight='balanced')
+    )
+    model.fit(X_train, y_train)
 
-# Sidebar untuk navigasi tab
-st.sidebar.title("Navigasi")
-page = st.sidebar.radio("Pilih Halaman:", ["Dashboard", "Testing", "Tentang"])
+    # Evaluasi
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred, output_dict=True)
 
-# Halaman Dashboard
-if page == "Dashboard":
-    st.title("📈 Dashboard Interaktif")
-    st.markdown("Selamat datang di dashboard interaktif! Visualisasi data secara real-time.")
+    # Simpan model
+    joblib.dump(model, 'svm_model_hoax_detector.pkl')
+    return model, accuracy, report
 
-    # Layout kolom untuk metrik
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric(label="Total Penjualan", value=f"{df['Penjualan'].sum():,}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric(label="Rata-rata Penjualan", value=f"{int(df['Penjualan'].mean())}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric(label="Kategori Unik", value=f"{df['Kategori'].nunique()}")
-        st.markdown('</div>', unsafe_allow_html=True)
+# Fungsi untuk memuat model
+@st.cache_resource
+def load_model():
+    if os.path.exists('svm_model_hoax_detector.pkl'):
+        return joblib.load('svm_model_hoax_detector.pkl')
+    else:
+        model, _, _ = train_model()
+        return model
 
-    # Filter interaktif
-    st.subheader("Filter Data")
-    kategori = st.multiselect("Pilih Kategori:", options=df['Kategori'].unique(), default=df['Kategori'].unique())
-    filtered_df = df[df['Kategori'].isin(kategori)]
+# Antarmuka Streamlit
+st.title("Detektor Berita Hoax")
+st.write("Masukkan teks berita untuk memprediksi apakah itu hoax atau valid.")
 
-    # Visualisasi
-    st.subheader("Visualisasi Penjualan")
-    col1, col2 = st.columns(2)
-    with col1:
-        fig = px.line(filtered_df, x='Tanggal', y='Penjualan', title="Tren Penjualan", color='Kategori')
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        fig = px.histogram(filtered_df, x='Penjualan', color='Kategori', title="Distribusi Penjualan")
-        st.plotly_chart(fig, use_container_width=True)
+# Input teks dari pengguna
+user_input = st.text_area("Masukkan teks berita:", "Pasien stroke diobati dengan tusuk jarum")
 
-# Halaman Testing
-elif page == "Testing":
-    st.title("🧪 Halaman Testing")
-    st.markdown("Halaman ini digunakan untuk menguji fitur atau fungsi baru.")
+# Tombol untuk memicu prediksi
+if st.button("Prediksi"):
+    if not user_input.strip():
+        st.error("Teks tidak boleh kosong!")
+    else:
+        # Muat model
+        model = load_model()
+        
+        # Prediksi
+        prediction = model.predict([user_input])[0]
+        result = "Hoax" if prediction == 1 else "Valid"
+        
+        # Tampilkan hasil
+        st.success(f"Prediksi: **{result}**")
 
-    # Contoh input interaktif
-    st.subheader("Uji Input Data")
-    user_input = st.text_input("Masukkan teks untuk diuji:", "Contoh Teks")
-    if st.button("Proses"):
-        st.write(f"Anda memasukkan: **{user_input}**")
-    
-    # Contoh visualisasi testing
-    st.subheader("Grafik Tes")
-    test_data = pd.DataFrame({
-        'x': range(10),
-        'y': np.random.randn(10)
-    })
-    fig = px.scatter(test_data, x='x', y='y', title="Scatter Plot Tes")
-    st.plotly_chart(fig, use_container_width=True)
-
-# Halaman Tentang
-else:
-    st.title("ℹ️ Tentang")
-    st.markdown("""
-    ### Tentang Dashboard Ini
-    Dashboard ini dibuat menggunakan **Streamlit**, sebuah framework open-source untuk membangun aplikasi web interaktif dengan Python.
-    
-    **Fitur Utama:**
-    - Visualisasi data interaktif menggunakan Plotly.
-    - Navigasi mudah melalui sidebar dengan tab Dashboard, Testing, dan Tentang.
-    - Desain responsif yang dioptimalkan untuk Streamlit Cloud.
-    
-    **Tujuan:**
-    Dashboard ini dirancang untuk menampilkan data secara menarik, memungkinkan pengujian fitur baru, dan memberikan informasi tentang aplikasi.
-    
-    **Kontak:**
-    Dibuat oleh [Nama Anda]. Untuk pertanyaan, hubungi [email@contoh.com](mailto:email@contoh.com).
-    """)
-
-# Footer
-st.markdown("---")
-st.markdown("© 2025 Dashboard Interaktif. Dibuat dengan Streamlit.")
+# Tampilkan metrik evaluasi model
+if st.checkbox("Tampilkan metrik evaluasi model"):
+    _, accuracy, report = train_model()
+    st.write(f"**Akurasi Model:** {accuracy:.2f}")
+    st.write("**Laporan Klasifikasi:**")
+    st.json(report)
