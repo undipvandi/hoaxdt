@@ -60,7 +60,7 @@ st.write("Aplikasi pendeteksi berita hoax dengan studi kasus tusuk jarum pencega
 user_input = st.text_area("Masukkan Teks Berita:", "Pasien stroke diobati dengan tusuk jarum")
 
 # Tombol untuk memicu prediksi
-if st.button("Prediksi"):
+if st.button("Deteksi"):
     if not user_input.strip():
         st.error("🚨 Teks tidak boleh kosong!")
     else:
@@ -75,21 +75,22 @@ if st.button("Prediksi"):
         # st.success(f"Prediksi: **{result}**")
 
         if prediction == 1:
-            st.error(f"Prediksi: **{result}**")
+            st.error(f"**{result}**")
         else:
-            st.success(f"Prediksi: **{result}**")
+            st.success(f"**{result}**")
 
 # Tampilkan metrik evaluasi model
 if st.checkbox("Tampilkan metrik"):
     _, accuracy, report = train_model()
     st.write(f"**Akurasi Model:** {accuracy:.2f}")
     st.write(f"**Model:** SVM")
+    st.write(f"**Dataset:** https://raw.githubusercontent.com/undipvandi/hoaxdt/refs/heads/main/data1.csv")
     st.write("**Laporan Klasifikasi:**")
     st.json(report)
 
 footer_html = """
 <div style='text-align: center;'>
-<p>Dikembangan oleh Kelompok 2</p>
+<p>Dikembangan oleh Kelompok 2 ❤️</p>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
