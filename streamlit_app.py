@@ -54,15 +54,15 @@ def load_model():
 # Antarmuka Streamlit
 st.title("📰 Pendeteksi Berita Hoax")
 st.subheader("Tugas Transformasi Digital")
-st.write("Masukkan teks berita untuk memprediksi apakah itu hoax atau valid. (Studi kasus: Tusuk Jarum Pencegah Stroke)")
+st.write("Aplikasi pendeteksi berita hoax dengan studi kasus tusuk jarum pencegah stroke.")
 
 # Input teks dari pengguna
-user_input = st.text_area("Masukkan teks berita:", "Pasien stroke diobati dengan tusuk jarum")
+user_input = st.text_area("Masukkan Teks Berita:", "Pasien stroke diobati dengan tusuk jarum")
 
 # Tombol untuk memicu prediksi
 if st.button("Prediksi"):
     if not user_input.strip():
-        st.error("Teks tidak boleh kosong!")
+        st.error("🚨 Teks tidak boleh kosong!")
     else:
         # Muat model
         model = load_model()
@@ -72,18 +72,24 @@ if st.button("Prediksi"):
         result = "🚨 Berita ini terdeteksi sebagai HOAX!" if prediction == 1 else "✅ Berita ini terdeteksi sebagai berita ASLI."
         
         # Tampilkan hasil
-        st.success(f"Prediksi: **{result}**")
+        # st.success(f"Prediksi: **{result}**")
+
+        if prediction == 1:
+            st.error(f"Prediksi: **{result}**")
+        else:
+            st.success(f"Prediksi: **{result}**")
 
 # Tampilkan metrik evaluasi model
-if st.checkbox("Tampilkan metrik evaluasi model"):
+if st.checkbox("Tampilkan metrik"):
     _, accuracy, report = train_model()
     st.write(f"**Akurasi Model:** {accuracy:.2f}")
+    st.write(f"**Model:** SVM")
     st.write("**Laporan Klasifikasi:**")
     st.json(report)
 
 footer_html = """
 <div style='text-align: center;'>
-<p>Developed with ❤️ by Kelompok 2</p>
+<p>Dikembangan oleh Kelompok 2</p>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
