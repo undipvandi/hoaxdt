@@ -1,33 +1,89 @@
 import streamlit as st
+import pandas as pd
+import nltk
+from nltk.corpus import stopwords
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.pipeline import make_pipeline
+import joblib
+import os
 
-# Set the title and description of the app
-st.title("📰 Pendeteksi Berita Hoax")
-st.subheader("Transformasi Digital Kelompok 2")
-st.write(
-    "Masukkan teks berita yang ingin Anda periksa, dan aplikasi ini akan membantu mendeteksi apakah berita tersebut hoax atau tidak."
-)
+# Download stopwords
+nltk.download('stopwords', quiet=True)
 
-# Create a form for user input
-with st.form("hoax_detection_form"):
-    # Input field for news text
-    news_text = st.text_area("Masukkan teks berita di sini:", height=200)
-    
-    # Submit button
-    submitted = st.form_submit_button("Deteksi Berita")
+# Fungsi untuk melatih dan menyimpan model
+@st.cache_resource
+def train_model():
+    # Load dataset
+    data = pd.read_csv("data1.csv")
+    data = data.dropna(subset=["informasi", "label"])
+    data['label'] = data['label'].apply(lambda x: 1 if x == 'hoax' else 0)
 
-# Process the input when the form is submitted
-if submitted:
-    if news_text.strip() == "":
-        st.warning("Silakan masukkan teks berita terlebih dahulu.")
+    # Split data
+    X = data['informasi']
+    y = data['label']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Buat dan latih model
+    model = make_pipeline(
+        TfidfVectorizer(stop_words=stopwords.words('indonesian')),
+        SVC(kernel='linear', class_weight='balanced')
+    )
+    model.fit(X_train, y_train)
+
+    # Evaluasi
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred, output_dict=True)
+
+    # Simpan model
+    joblib.dump(model, 'svm_model_hoax_detector.pkl')
+    return model, accuracy, report
+
+# Fungsi untuk memuat model
+@st.cache_resource
+def load_model():
+    if os.path.exists('svm_model_hoax_detector.pkl'):
+        return joblib.load('svm_model_hoax_detector.pkl')
     else:
-        # Placeholder for detection logic
-        st.info("Sedang memproses...")
+        model, _, _ = train_model()
+        return model
+
+# Antarmuka Streamlit
+st.title("📰 Pendeteksi Berita Hoax")
+st.subheader("Tugas Transformasi Digital")
+st.write("Masukkan teks berita untuk memprediksi apakah itu hoax atau valid. (Studi kasus: Tusuk Jarum Pencegah Stroke)")
+
+# Input teks dari pengguna
+user_input = st.text_area("Masukkan teks berita:", "Pasien stroke diobati dengan tusuk jarum")
+
+# Tombol untuk memicu prediksi
+if st.button("Prediksi"):
+    if not user_input.strip():
+        st.error("Teks tidak boleh kosong!")
+    else:
+        # Muat model
+        model = load_model()
         
-        # Simulasi hasil deteksi (ganti dengan model deteksi sebenarnya)
-        import random
-        is_hoax = random.choice([True, False])
+        # Prediksi
+        prediction = model.predict([user_input])[0]
+        result = "🚨 Berita ini terdeteksi sebagai HOAX!" if prediction == 1 else "✅ Berita ini terdeteksi sebagai berita ASLI."
         
-        if is_hoax:
-            st.error("🚨 Berita ini terdeteksi sebagai HOAX!")
-        else:
-            st.success("✅ Berita ini terdeteksi sebagai berita ASLI.")
+        # Tampilkan hasil
+        st.success(f"Prediksi: **{result}**")
+
+# Tampilkan metrik evaluasi model
+if st.checkbox("Tampilkan metrik evaluasi model"):
+    _, accuracy, report = train_model()
+    st.write(f"**Akurasi Model:** {accuracy:.2f}")
+    st.write("**Laporan Klasifikasi:**")
+    st.json(report)
+
+footer_html = """
+<div style='text-align: center;'>
+<p>Developed with ❤️ by Kelompok 2</p>
+</div>
+"""
+st.markdown(footer_html, unsafe_allow_html=True)
