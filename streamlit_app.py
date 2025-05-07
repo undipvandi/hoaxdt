@@ -1,81 +1,105 @@
 import streamlit as st
-import pandas as pd
-import nltk
-from nltk.corpus import stopwords
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.pipeline import make_pipeline
-import joblib
-import os
 
-# Download stopwords
-nltk.download('stopwords', quiet=True)
+# Konfigurasi halaman
+st.set_page_config(page_title="Deteksi Hoax App", page_icon="🕵️", layout="wide")
 
-# Fungsi untuk melatih dan menyimpan model
-@st.cache_resource
-def train_model():
-    # Load dataset
-    data = pd.read_csv("data1.csv")
-    data = data.dropna(subset=["informasi", "label"])
-    data['label'] = data['label'].apply(lambda x: 1 if x == 'hoax' else 0)
+# CSS untuk desain menarik
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f0f2f6;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+    .stButton>button:hover {
+        background-color: #45a049;
+    }
+    .debug-box {
+        background-color: #ffcccc;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+    .title {
+        color: #2c3e50;
+        font-size: 36px;
+        font-weight: bold;
+        text-align: center;
+    }
+    .subtitle {
+        color: #34495e;
+        font-size: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-    # Split data
-    X = data['informasi']
-    y = data['label']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Sidebar untuk navigasi
+with st.sidebar:
+    st.image("https://via.placeholder.com/150", caption="Logo Aplikasi")  # Ganti dengan logo kamu
+    st.markdown("## Navigasi")
+    page = st.radio("Pilih Halaman", ["Deteksi Hoax", "Tentang Pembuat"])
 
-    # Buat dan latih model
-    model = make_pipeline(
-        TfidfVectorizer(stop_words=stopwords.words('indonesian')),
-        SVC(kernel='linear', class_weight='balanced')
-    )
-    model.fit(X_train, y_train)
+# Halaman Utama: Deteksi Hoax
+if page == "Deteksi Hoax":
+    st.markdown("<h1 class='title'>Deteksi Hoax Berita</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Masukkan teks berita untuk mendeteksi apakah itu hoax atau bukan!</p>", unsafe_allow_html=True)
 
-    # Evaluasi
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    report = classification_report(y_test, y_pred, output_dict=True)
+    # Layout dengan kolom
+    col1, col2 = st.columns([2, 1])
 
-    # Simpan model
-    joblib.dump(model, 'svm_model_hoax_detector.pkl')
-    return model, accuracy, report
+    with col1:
+        # Form input
+        with st.form("hoax_form"):
+            st.markdown("### Masukkan Berita")
+            text_input = st.text_area("Teks Berita", height=200, placeholder="Masukkan teks berita di sini...")
+            submit_button = st.form_submit_button("Prediksi")
 
-# Fungsi untuk memuat model
-@st.cache_resource
-def load_model():
-    if os.path.exists('svm_model_hoax_detector.pkl'):
-        return joblib.load('svm_model_hoax_detector.pkl')
-    else:
-        model, _, _ = train_model()
-        return model
+        # Logika prediksi (simulasi)
+        if submit_button and text_input:
+            # Simulasi hasil prediksi (ganti dengan model ML kamu)
+            result = "Hoax" if len(text_input.split()) % 2 == 0 else "Bukan Hoax"
+            st.success(f"Hasil Prediksi: **{result}**")
+            st.balloons()
 
-# Antarmuka Streamlit
-st.title("Detektor Berita Hoax")
-st.write("Masukkan teks berita untuk memprediksi apakah itu hoax atau valid.")
+    with col2:
+        # Tombol Debug
+        st.markdown("### Debug Info")
+        if st.button("Tampilkan Debug"):
+            st.markdown("<div class='debug-box'>", unsafe_allow_html=True)
+            st.write(f"**Input Teks**: {text_input}")
+            st.write(f"**Panjang Teks**: {len(text_input)} karakter")
+            st.write(f"**Jumlah Kata**: {len(text_input.split())} kata")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-# Input teks dari pengguna
-user_input = st.text_area("Masukkan teks berita:", "Pasien stroke diobati dengan tusuk jarum")
+# Halaman Tentang Pembuat
+elif page == "Tentang Pembuat":
+    st.markdown("<h1 class='title'>Tentang Pembuat</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Kenali tim di balik aplikasi Deteksi Hoax!</p>", unsafe_allow_html=True)
 
-# Tombol untuk memicu prediksi
-if st.button("Prediksi"):
-    if not user_input.strip():
-        st.error("Teks tidak boleh kosong!")
-    else:
-        # Muat model
-        model = load_model()
-        
-        # Prediksi
-        prediction = model.predict([user_input])[0]
-        result = "Hoax" if prediction == 1 else "Valid"
-        
-        # Tampilkan hasil
-        st.success(f"Prediksi: **{result}**")
+    # Informasi pembuat
+    st.markdown("""
+    ### Pembuat Program
+    **Nama**: [Nama Kamu]  
+    **Deskripsi**: Saya adalah seorang pengembang yang bersemangat menciptakan solusi teknologi untuk masalah dunia nyata.  
+    **Kontak**: [email@example.com]  
+    **GitHub**: [github.com/username]  
 
-# Tampilkan metrik evaluasi model
-if st.checkbox("Tampilkan metrik evaluasi model"):
-    _, accuracy, report = train_model()
-    st.write(f"**Akurasi Model:** {accuracy:.2f}")
-    st.write("**Laporan Klasifikasi:**")
-    st.json(report)
+    Aplikasi ini dibuat untuk membantu masyarakat mengenali berita hoax dengan cepat dan mudah. Terima kasih telah menggunakan aplikasi ini!
+    """)
+
+    # Ekspander untuk info tambahan
+    with st.expander("Visi dan Misi"):
+        st.write("**Visi**: Menciptakan dunia yang bebas dari misinformasi.")
+        st.write("**Misi**: Memberikan alat yang mudah digunakan untuk mendeteksi berita hoax.")
+
+# Footer
+st.markdown("---")
+st.markdown("<p style='text-align: center; color: #7f8c8d;'>© 2025 Deteksi Hoax App. Dibuat dengan ❤️ menggunakan Streamlit.</p>", unsafe_allow_html=True)
