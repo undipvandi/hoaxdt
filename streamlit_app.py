@@ -1,8 +1,8 @@
 import streamlit as st
 
 # Set the title and description of the app
-st.title("📰 Hoax News Detector")
-st.subheader("Deteksi Berita Hoax dengan Mudah")
+st.title("📰 Pendeteksi Berita Hoax")
+st.subheader("Transformasi Digital Kelompok 2")
 st.write(
     "Masukkan teks berita yang ingin Anda periksa, dan aplikasi ini akan membantu mendeteksi apakah berita tersebut hoax atau tidak."
 )
