@@ -1,51 +1,137 @@
 import streamlit as st
 import pandas as pd
-import nltk
-from nltk.corpus import stopwords
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.pipeline import make_pipeline
-import joblib
+import plotly.express as px
+import numpy as np
 
-# Pastikan sudah mengunduh stopwords dari nltk
-nltk.download('stopwords')
+# Konfigurasi halaman
+st.set_page_config(
+    page_title="Dashboard Interaktif",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Judul aplikasi
-st.title("Deteksi Hoax dengan Machine Learning")
+# Styling CSS untuk tampilan menarik
+st.markdown("""
+    <style>
+    .sidebar .sidebar-content {
+        background-color: #f0f2f6;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 8px;
+        padding: 10px 20px;
+    }
+    .stButton>button:hover {
+        background-color: #45a049;
+    }
+    h1, h2, h3 {
+        color: #2c3e50;
+        font-family: 'Arial', sans-serif;
+    }
+    .metric-card {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Langkah 1: Load dataset
-st.write("Mengunggah dataset...")
-data = pd.read_csv("data1.csv")
+# Fungsi untuk membuat data dummy
+@st.cache_data
+def load_data():
+    np.random.seed(42)
+    data = {
+        'Tanggal': pd.date_range(start='2025-01-01', periods=100, freq='D'),
+        'Penjualan': np.random.randint(50, 200, 100),
+        'Kategori': np.random.choice(['A', 'B', 'C'], 100)
+    }
+    return pd.DataFrame(data)
 
-# Langkah 2: Preprocessing
-data = data.dropna(subset=["informasi", "label"])
-data['label'] = data['label'].apply(lambda x: 1 if x == 'hoax' else 0)
+# Load data
+df = load_data()
 
-# Langkah 3: Membagi data menjadi train dan test set
-X = data['informasi']  # Teks berita
-y = data['label']  # Label (hoax atau valid)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Sidebar untuk navigasi tab
+st.sidebar.title("Navigasi")
+page = st.sidebar.radio("Pilih Halaman:", ["Dashboard", "Testing", "Tentang"])
 
-# Langkah 4: Membuat pipeline untuk preprocessing dan model
-model = make_pipeline(TfidfVectorizer(stop_words=stopwords.words('indonesian')), SVC(kernel='linear', class_weight='balanced'))
+# Halaman Dashboard
+if page == "Dashboard":
+    st.title("📈 Dashboard Interaktif")
+    st.markdown("Selamat datang di dashboard interaktif! Visualisasi data secara real-time.")
 
-# Langkah 5: Melatih model
-st.write("Melatih model...")
-model.fit(X_train, y_train)
+    # Layout kolom untuk metrik
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric(label="Total Penjualan", value=f"{df['Penjualan'].sum():,}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric(label="Rata-rata Penjualan", value=f"{int(df['Penjualan'].mean())}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.metric(label="Kategori Unik", value=f"{df['Kategori'].nunique()}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# Langkah 6: Evaluasi model
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-st.write("Akurasi:", accuracy)
-st.write("Classification Report:")
-st.text(classification_report(y_test, y_pred))
+    # Filter interaktif
+    st.subheader("Filter Data")
+    kategori = st.multiselect("Pilih Kategori:", options=df['Kategori'].unique(), default=df['Kategori'].unique())
+    filtered_df = df[df['Kategori'].isin(kategori)]
 
-# Langkah 7: Prediksi
-st.write("Masukkan teks untuk prediksi:")
-text_to_predict = st.text_input("Teks berita", "tusuk jari bagi pasien stroke berbahaya")
-if st.button("Prediksi"):
-    prediction = model.predict([text_to_predict])
-    result = "Hoax" if prediction[0] == 1 else "Valid"
-    st.write("Prediksi:", result)
+    # Visualisasi
+    st.subheader("Visualisasi Penjualan")
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = px.line(filtered_df, x='Tanggal', y='Penjualan', title="Tren Penjualan", color='Kategori')
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        fig = px.histogram(filtered_df, x='Penjualan', color='Kategori', title="Distribusi Penjualan")
+        st.plotly_chart(fig, use_container_width=True)
+
+# Halaman Testing
+elif page == "Testing":
+    st.title("🧪 Halaman Testing")
+    st.markdown("Halaman ini digunakan untuk menguji fitur atau fungsi baru.")
+
+    # Contoh input interaktif
+    st.subheader("Uji Input Data")
+    user_input = st.text_input("Masukkan teks untuk diuji:", "Contoh Teks")
+    if st.button("Proses"):
+        st.write(f"Anda memasukkan: **{user_input}**")
+    
+    # Contoh visualisasi testing
+    st.subheader("Grafik Tes")
+    test_data = pd.DataFrame({
+        'x': range(10),
+        'y': np.random.randn(10)
+    })
+    fig = px.scatter(test_data, x='x', y='y', title="Scatter Plot Tes")
+    st.plotly_chart(fig, use_container_width=True)
+
+# Halaman Tentang
+else:
+    st.title("ℹ️ Tentang")
+    st.markdown("""
+    ### Tentang Dashboard Ini
+    Dashboard ini dibuat menggunakan **Streamlit**, sebuah framework open-source untuk membangun aplikasi web interaktif dengan Python.
+    
+    **Fitur Utama:**
+    - Visualisasi data interaktif menggunakan Plotly.
+    - Navigasi mudah melalui sidebar dengan tab Dashboard, Testing, dan Tentang.
+    - Desain responsif yang dioptimalkan untuk Streamlit Cloud.
+    
+    **Tujuan:**
+    Dashboard ini dirancang untuk menampilkan data secara menarik, memungkinkan pengujian fitur baru, dan memberikan informasi tentang aplikasi.
+    
+    **Kontak:**
+    Dibuat oleh [Nama Anda]. Untuk pertanyaan, hubungi [email@contoh.com](mailto:email@contoh.com).
+    """)
+
+# Footer
+st.markdown("---")
+st.markdown("© 2025 Dashboard Interaktif. Dibuat dengan Streamlit.")
