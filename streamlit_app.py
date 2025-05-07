@@ -52,6 +52,17 @@ def load_model():
         return model
 
 # Antarmuka Streamlit
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background-color: #EFCDCD /* Ganti dengan kode warna yang diinginkan, misalnya #f0f2f6 untuk abu-abu muda */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 st.title("📰 Pendeteksi Berita Hoax")
 st.subheader("Tugas Transformasi Digital")
 st.write("Aplikasi pendeteksi berita hoax dengan studi kasus tusuk jarum pencegah stroke.")
